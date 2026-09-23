@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Fraud Detection System | Java 21</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    code, pre, .font-mono { font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+
+  <!-- Navbar -->
+  <header class="border-b border-slate-800 bg-slate-900/70 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <svg class="w-6 h-6 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-2">
+            FraudGuard 21
+            <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Java 21 Virtual Threads</span>
+          </h1>
+          <p class="text-xs text-slate-400">Smart Transaction Fraud Detection Engine</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-3">
+        <span id="backendStatus" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          Connected: Port 8080
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+    <!-- Quick Scenario Presets -->
+    <section class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-xl">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+          <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+          Quick Test Scenarios
+        </h2>
+        <span class="text-xs text-slate-500">Click to autofill test cases</span>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <button onclick="loadScenario('clean-card')" class="text-left p-3 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 hover:border-emerald-500/40 transition group">
+          <div class="flex items-center justify-between text-xs font-medium text-emerald-400 mb-1">
+            <span>Clean Domestic Card</span>
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          </div>
+          <div class="text-xs text-slate-400 truncate">₹15,000 • Mumbai</div>
+        </button>
+        <button onclick="loadScenario('velocity-card')" class="text-left p-3 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 hover:border-rose-500/40 transition group">
+          <div class="flex items-center justify-between text-xs font-medium text-rose-400 mb-1">
+            <span>Velocity Block (> 100k)</span>
+            <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+          </div>
+          <div class="text-xs text-slate-400 truncate">₹150,000 • Velocity Rule</div>
+        </button>
+        <button onclick="loadScenario('geo-jumping')" class="text-left p-3 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 hover:border-rose-500/40 transition group">
+          <div class="flex items-center justify-between text-xs font-medium text-rose-400 mb-1">
+            <span>Geo-Jumping Block</span>
+            <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+          </div>
+          <div class="text-xs text-slate-400 truncate">London, UK • International</div>
+        </button>
+        <button onclick="loadScenario('clean-upi')" class="text-left p-3 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 hover:border-emerald-500/40 transition group">
+          <div class="flex items-center justify-between text-xs font-medium text-emerald-400 mb-1">
+            <span>Clean UPI Payment</span>
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          </div>
+          <div class="text-xs text-slate-400 truncate">₹3,200 • rahul@okaxis</div>
+        </button>
+        <button onclick="loadScenario('invalid-vpa')" class="text-left p-3 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 hover:border-amber-500/40 transition group">
+          <div class="flex items-center justify-between text-xs font-medium text-amber-400 mb-1">
+            <span>Invalid VPA Format</span>
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+          </div>
+          <div class="text-xs text-slate-400 truncate">₹5,000 • bad_vpa_string</div>
+        </button>
+      </div>
+    </section>
+
+    <!-- Interactive Grid: Form on Left, Live Outcome on Right -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+      <!-- Transaction Submission Form -->
+      <section class="lg:col-span-7 bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+        <div>
+          <h2 class="text-lg font-semibold text-white">Evaluate Transaction</h2>
+          <p class="text-xs text-slate-400">Input transaction parameters to evaluate through Java 21 pattern-matched fraud rules</p>
+        </div>
+
+        <!-- Type Selector -->
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Payment Instrument Type</label>
+          <div class="grid grid-cols-2 gap-3">
+            <button type="button" id="btnTypeCard" onclick="setType('CARD')" class="flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-indigo-500 bg-indigo-500/10 text-white font-medium text-sm transition">
+              <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+              Card Transaction
+            </button>
+            <button type="button" id="btnTypeUpi" onclick="setType('UPI')" class="flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-slate-700 bg-slate-800/40 text-slate-400 font-medium text-sm hover:border-slate-600 transition">
+              <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+              UPI Transaction
+            </button>
+          </div>
+        </div>
+
+        <form id="txForm" onsubmit="handleEvaluate(event)" class="space-y-4">
+          <!-- Identifiers -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Transaction ID</label>
+              <div class="relative">
+                <input type="text" id="txId" required class="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-indigo-500 transition" />
+                <button type="button" onclick="regenerateTxId()" title="Regenerate ID" class="absolute right-2.5 top-2.5 text-slate-500 hover:text-indigo-400 transition">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                </button>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Account ID</label>
+              <input type="text" id="accountId" value="ACC-101" required class="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-indigo-500 transition" />
+            </div>
+          </div>
+
+          <!-- Amount -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="text-xs font-medium text-slate-400">Transaction Amount (₹)</label>
+              <span id="amountNotice" class="text-xs text-slate-500">Threshold limit: ₹100,000</span>
+            </div>
+            <div class="relative">
+              <span class="absolute left-3.5 top-2.5 text-slate-500 text-sm">₹</span>
+              <input type="number" id="amount" step="0.01" min="1" value="15000" required oninput="checkVelocityWarning()" class="w-full bg-slate-950/80 border border-slate-700 rounded-xl pl-8 pr-3.5 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-indigo-500 transition" />
+            </div>
+          </div>
+
+          <!-- Geography -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">City</label>
+              <input type="text" id="city" value="Mumbai" required class="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Country</label>
+              <input type="text" id="country" value="INDIA" required class="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition" />
+            </div>
+          </div>
+
+          <!-- Card Fields -->
+          <div id="cardFields" class="space-y-4 pt-2 border-t border-slate-800">
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Card Number</label>
+              <input type="text" id="cardNumber" value="4111-2222-3333-4444" class="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-indigo-500 transition" />
+            </div>
+            <div class="flex items-center space-x-3 p-3 rounded-xl bg-slate-950/50 border border-slate-800">
+              <input type="checkbox" id="isInternational" class="w-4 h-4 rounded text-indigo-500 focus:ring-indigo-400 bg-slate-900 border-slate-700" />
+              <label for="isInternational" class="text-xs text-slate-300 font-medium cursor-pointer">
+                Flag as Cross-Border / International Transaction (Triggers GeoJumpingRule)
+              </label>
+            </div>
+          </div>
+
+          <!-- UPI Fields -->
+          <div id="upiFields" class="hidden space-y-4 pt-2 border-t border-slate-800">
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Virtual Payment Address (VPA)</label>
+              <input type="text" id="vpaId" placeholder="username@bank" value="rahul@okaxis" class="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-indigo-500 transition" />
+              <p class="text-xs text-slate-500 mt-1">Must contain standard '@' separator (e.g. name@okaxis)</p>
+            </div>
+          </div>
+
+          <!-- Submit Buttons -->
+          <div class="pt-4 flex items-center gap-3">
+            <button type="submit" id="submitBtn" class="flex-1 py-3 px-5 rounded-xl font-semibold text-sm bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 transition active:scale-[0.98]">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+              <span>Evaluate Transaction</span>
+            </button>
+            <button type="button" onclick="resetForm()" class="py-3 px-4 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-400 hover:text-white text-sm font-medium transition">
+              Reset
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Live Evaluation Result Display -->
+      <section class="lg:col-span-5 space-y-6">
+
+        <!-- Result Card -->
+        <div id="resultCard" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden transition-all duration-300">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Evaluation Outcome</h3>
+            <span id="badgeStatus" class="px-2.5 py-1 rounded-full text-xs font-bold tracking-wide bg-slate-800 text-slate-400 border border-slate-700">
+              AWAITING EVALUATION
+            </span>
+          </div>
+
+          <!-- Empty State -->
+          <div id="emptyResult" class="py-12 text-center text-slate-500 space-y-2">
+            <svg class="w-12 h-12 mx-auto text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <p class="text-sm">Submit a transaction to view live rule decisions</p>
+          </div>
+
+          <!-- Result Content -->
+          <div id="activeResult" class="hidden space-y-4">
+            <div id="resultBanner" class="p-4 rounded-xl border flex items-start gap-3">
+              <div id="resultIcon" class="mt-0.5"></div>
+              <div>
+                <h4 id="resultTitle" class="text-sm font-bold"></h4>
+                <p id="resultMessage" class="text-xs mt-1 leading-relaxed"></p>
+              </div>
+            </div>
+
+            <!-- Details Table -->
+            <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 space-y-2.5 text-xs font-mono">
+              <div class="flex justify-between border-b border-slate-800/60 pb-2">
+                <span class="text-slate-500">Transaction ID</span>
+                <span id="resTxId" class="text-slate-200"></span>
+              </div>
+              <div class="flex justify-between border-b border-slate-800/60 pb-2">
+                <span class="text-slate-500">Account ID</span>
+                <span id="resAccountId" class="text-slate-200"></span>
+              </div>
+              <div class="flex justify-between border-b border-slate-800/60 pb-2">
+                <span class="text-slate-500">Amount</span>
+                <span id="resAmount" class="text-slate-200 font-semibold"></span>
+              </div>
+              <div class="flex justify-between border-b border-slate-800/60 pb-2">
+                <span class="text-slate-500">Timestamp</span>
+                <span id="resTimestamp" class="text-slate-400"></span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-500">Audit Status</span>
+                <span id="resAuditStatus" class="text-slate-300"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Account Historical Cache Metrics (Phase 3 Streams) -->
+        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+              User Cache & Streams Average
+            </h3>
+            <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded">Phase 3</span>
+          </div>
+          <div class="grid grid-cols-2 gap-3 text-center">
+            <div class="p-3 bg-slate-950/60 border border-slate-800 rounded-xl">
+              <div class="text-xs text-slate-400 mb-0.5">Approved Txns</div>
+              <div id="statCount" class="text-xl font-bold font-mono text-emerald-400">0</div>
+            </div>
+            <div class="p-3 bg-slate-950/60 border border-slate-800 rounded-xl">
+              <div class="text-xs text-slate-400 mb-0.5">Historical Avg</div>
+              <div id="statAvg" class="text-xl font-bold font-mono text-indigo-400">₹0.00</div>
+            </div>
+          </div>
+          <p class="text-[11px] text-slate-500 text-center">Calculated dynamically using Java Streams API on <span class="font-mono text-slate-400">UserHistory.calculateAverageAmount()</span></p>
+        </div>
+
+      </section>
+    </div>
+
+    <!-- Live Evaluation Session Table -->
+    <section class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-semibold text-white">Live Session History</h2>
+          <p class="text-xs text-slate-400">Evaluations performed in this web session</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="sessionStats" class="text-xs text-slate-400">Total: 0 | Approved: 0 | Blocked: 0</span>
+          <button onclick="clearHistoryTable()" class="text-xs px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition">Clear</button>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs font-mono">
+          <thead class="bg-slate-950/80 text-slate-400 border-b border-slate-800">
+            <tr>
+              <th class="px-4 py-3">Tx ID</th>
+              <th class="px-4 py-3">Account</th>
+              <th class="px-4 py-3">Type</th>
+              <th class="px-4 py-3">Amount</th>
+              <th class="px-4 py-3">Location</th>
+              <th class="px-4 py-3">Status</th>
+              <th class="px-4 py-3">Reason / Details</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody" class="divide-y divide-slate-800/60 text-slate-300">
+            <tr id="noHistoryRow">
+              <td colspan="7" class="px-4 py-8 text-center text-slate-500 font-sans">No transactions evaluated yet.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    let currentType = 'CARD';
+    let sessionCount = 0;
+    let sessionApproved = 0;
+    let sessionBlocked = 0;
+
+    // Generate random transaction ID
+    function regenerateTxId() {
+      const rand = Math.floor(1000 + Math.random() * 9000);
+      document.getElementById('txId').value = `TXN-${rand}`;
+    }
+    regenerateTxId();
+
+    function setType(type) {
+      currentType = type;
+      const btnCard = document.getElementById('btnTypeCard');
+      const btnUpi = document.getElementById('btnTypeUpi');
+      const cardFields = document.getElementById('cardFields');
+      const upiFields = document.getElementById('upiFields');
+
+      if (type === 'CARD') {
+        btnCard.className = 'flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-indigo-500 bg-indigo-500/10 text-white font-medium text-sm transition';
+        btnUpi.className = 'flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-slate-700 bg-slate-800/40 text-slate-400 font-medium text-sm hover:border-slate-600 transition';
+        cardFields.classList.remove('hidden');
+        upiFields.classList.add('hidden');
+      } else {
+        btnUpi.className = 'flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-indigo-500 bg-indigo-500/10 text-white font-medium text-sm transition';
+        btnCard.className = 'flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-slate-700 bg-slate-800/40 text-slate-400 font-medium text-sm hover:border-slate-600 transition';
+        upiFields.classList.remove('hidden');
+        cardFields.classList.add('hidden');
+      }
+    }
+
+    function checkVelocityWarning() {
+      const amt = parseFloat(document.getElementById('amount').value) || 0;
+      const notice = document.getElementById('amountNotice');
+      if (amt > 100000) {
+        notice.textContent = '⚠️ Exceeds ₹100,000 limit (Will be BLOCKED)';
+        notice.className = 'text-xs text-rose-400 font-semibold';
+      } else {
+        notice.textContent = 'Threshold limit: ₹100,000';
+        notice.className = 'text-xs text-slate-500';
+      }
+    }
+
+    function loadScenario(key) {
+      regenerateTxId();
+      if (key === 'clean-card') {
+        setType('CARD');
+        document.getElementById('accountId').value = 'ACC-101';
+        document.getElementById('amount').value = '15000';
+        document.getElementById('city').value = 'Mumbai';
+        document.getElementById('country').value = 'INDIA';
+        document.getElementById('cardNumber').value = '4111-2222-3333-4444';
+        document.getElementById('isInternational').checked = false;
+      } else if (key === 'velocity-card') {
+        setType('CARD');
+        document.getElementById('accountId').value = 'ACC-102';
+        document.getElementById('amount').value = '150000';
+        document.getElementById('city').value = 'Mumbai';
+        document.getElementById('country').value = 'INDIA';
+        document.getElementById('cardNumber').value = '4111-5555-6666-7777';
+        document.getElementById('isInternational').checked = false;
+      } else if (key === 'geo-jumping') {
+        setType('CARD');
+        document.getElementById('accountId').value = 'ACC-103';
+        document.getElementById('amount').value = '4500';
+        document.getElementById('city').value = 'London';
+        document.getElementById('country').value = 'UK';
+        document.getElementById('cardNumber').value = '4111-8888-9999-0000';
+        document.getElementById('isInternational').checked = true;
+      } else if (key === 'clean-upi') {
+        setType('UPI');
+        document.getElementById('accountId').value = 'ACC-104';
+        document.getElementById('amount').value = '3200';
+        document.getElementById('city').value = 'Bangalore';
+        document.getElementById('country').value = 'INDIA';
+        document.getElementById('vpaId').value = 'rahul@okaxis';
+      } else if (key === 'invalid-vpa') {
+        setType('UPI');
+        document.getElementById('accountId').value = 'ACC-105';
+        document.getElementById('amount').value = '5000';
+        document.getElementById('city').value = 'Bangalore';
+        document.getElementById('country').value = 'INDIA';
+        document.getElementById('vpaId').value = 'bad_vpa_string';
+      }
+      checkVelocityWarning();
+    }
+
+    function resetForm() {
+      document.getElementById('txForm').reset();
+      setType('CARD');
+      regenerateTxId();
+      document.getElementById('accountId').value = 'ACC-101';
+      document.getElementById('amount').value = '15000';
+      document.getElementById('city').value = 'Mumbai';
+      document.getElementById('country').value = 'INDIA';
+      document.getElementById('cardNumber').value = '4111-2222-3333-4444';
+      checkVelocityWarning();
+    }
+
+    async function handleEvaluate(e) {
+      e.preventDefault();
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = true;
+      submitBtn.classList.add('opacity-75');
+
+      const payload = {
+        txId: document.getElementById('txId').value.trim(),
+        accountId: document.getElementById('accountId').value.trim(),
+        amount: parseFloat(document.getElementById('amount').value),
+        city: document.getElementById('city').value.trim(),
+        country: document.getElementById('country').value.trim(),
+        type: currentType,
+        cardNumber: currentType === 'CARD' ? document.getElementById('cardNumber').value.trim() : null,
+        isInternational: currentType === 'CARD' ? document.getElementById('isInternational').checked : false,
+        vpaId: currentType === 'UPI' ? document.getElementById('vpaId').value.trim() : null
+      };
+
+      try {
+        // Post to Spring Boot backend
+        const response = await fetch('/api/fraud/evaluate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          displayOutcome(data, payload);
+          fetchAccountStats(payload.accountId);
+        } else {
+          // If server returned non-200 or offline
+          simulateLocally(payload, "Backend responded with error code: " + response.status);
+        }
+      } catch (err) {
+        // Fallback simulation if backend is not yet started
+        simulateLocally(payload);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('opacity-75');
+      }
+    }
+
+    // Local simulation fallback in case backend is offline
+    function simulateLocally(payload) {
+      let isBlocked = false;
+      let reason = "Transaction passed all fraud checks";
+
+      if (payload.amount > 100000) {
+        isBlocked = true;
+        reason = `${payload.type} transaction [${payload.txId}] failed VelocityRule: Amount ${payload.amount} exceeds limit of 100,000`;
+      } else if (payload.type === 'CARD' && (payload.isInternational || (payload.country && payload.country.toUpperCase() !== 'INDIA'))) {
+        isBlocked = true;
+        reason = `Card transaction [${payload.txId}] failed GeoJumpingRule: International transaction detected at ${payload.city}, ${payload.country}`;
+      } else if (payload.type === 'UPI' && (!payload.vpaId || !payload.vpaId.includes('@'))) {
+        isBlocked = true;
+        reason = `UPI transaction [${payload.txId}] failed VpaRule: Invalid VPA address [${payload.vpaId}]`;
+      }
+
+      const mockResponse = {
+        txId: payload.txId,
+        status: isBlocked ? 'BLOCKED' : 'APPROVED',
+        message: reason,
+        timestamp: new Date().toISOString()
+      };
+      displayOutcome(mockResponse, payload);
+    }
+
+    function displayOutcome(data, payload) {
+      document.getElementById('emptyResult').classList.add('hidden');
+      document.getElementById('activeResult').classList.remove('hidden');
+
+      const isApproved = data.status === 'APPROVED';
+      const badge = document.getElementById('badgeStatus');
+      const banner = document.getElementById('resultBanner');
+      const icon = document.getElementById('resultIcon');
+      const title = document.getElementById('resultTitle');
+      const message = document.getElementById('resultMessage');
+
+      sessionCount++;
+      if (isApproved) {
+        sessionApproved++;
+        badge.className = 'px-2.5 py-1 rounded-full text-xs font-bold tracking-wide bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+        badge.textContent = 'APPROVED';
+
+        banner.className = 'p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-200 flex items-start gap-3';
+        icon.innerHTML = `<svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
+        title.textContent = 'Transaction Approved';
+        title.className = 'text-sm font-bold text-emerald-300';
+        message.textContent = data.message;
+      } else {
+        sessionBlocked++;
+        badge.className = 'px-2.5 py-1 rounded-full text-xs font-bold tracking-wide bg-rose-500/10 text-rose-400 border border-rose-500/20';
+        badge.textContent = 'BLOCKED';
+
+        banner.className = 'p-4 rounded-xl border border-rose-500/20 bg-rose-500/10 text-rose-200 flex items-start gap-3';
+        icon.innerHTML = `<svg class="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>`;
+        title.textContent = 'Fraud Detected — Transaction Blocked';
+        title.className = 'text-sm font-bold text-rose-300';
+        message.textContent = data.message;
+      }
+
+      document.getElementById('resTxId').textContent = data.txId;
+      document.getElementById('resAccountId').textContent = payload.accountId;
+      document.getElementById('resAmount').textContent = `₹${payload.amount.toLocaleString()}`;
+      document.getElementById('resTimestamp').textContent = new Date(data.timestamp).toLocaleString();
+      document.getElementById('resAuditStatus').textContent = isApproved ? 'None (Clean)' : 'Appended to audit_alerts.log';
+
+      // Update Session Stats
+      document.getElementById('sessionStats').textContent = `Total: ${sessionCount} | Approved: ${sessionApproved} | Blocked: ${sessionBlocked}`;
+
+      // Append row to history table
+      const tbody = document.getElementById('historyTableBody');
+      const noRow = document.getElementById('noHistoryRow');
+      if (noRow) noRow.remove();
+
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-slate-900/60 transition';
+      tr.innerHTML = `
+        <td class="px-4 py-3 font-semibold text-slate-200">${data.txId}</td>
+        <td class="px-4 py-3 text-slate-400">${payload.accountId}</td>
+        <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-[10px] ${payload.type === 'CARD' ? 'bg-indigo-500/20 text-indigo-300' : 'bg-teal-500/20 text-teal-300'}">${payload.type}</span></td>
+        <td class="px-4 py-3 text-slate-200 font-semibold">₹${payload.amount.toLocaleString()}</td>
+        <td class="px-4 py-3 text-slate-400">${payload.city}, ${payload.country}</td>
+        <td class="px-4 py-3">
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isApproved ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}">${data.status}</span>
+        </td>
+        <td class="px-4 py-3 text-slate-400 truncate max-w-xs" title="${data.message}">${data.message}</td>
+      `;
+      tbody.prepend(tr);
+
+      // Auto generate next transaction ID
+      regenerateTxId();
+    }
+
+    async function fetchAccountStats(accountId) {
+      try {
+        const res = await fetch(`/api/fraud/history/${encodeURIComponent(accountId)}`);
+        if (res.ok) {
+          const stats = await res.json();
+          document.getElementById('statCount').textContent = stats.transactionCount;
+          document.getElementById('statAvg').textContent = `₹${stats.averageAmount.toFixed(2)}`;
+        }
+      } catch (e) {
+        // Ignore if endpoint unreachable
+      }
+    }
+
+    function clearHistoryTable() {
+      sessionCount = 0;
+      sessionApproved = 0;
+      sessionBlocked = 0;
+      document.getElementById('sessionStats').textContent = 'Total: 0 | Approved: 0 | Blocked: 0';
+      document.getElementById('historyTableBody').innerHTML = `
+        <tr id="noHistoryRow">
+          <td colspan="7" class="px-4 py-8 text-center text-slate-500 font-sans">No transactions evaluated yet.</td>
+        </tr>
+      `;
+    }
+
+    // Check backend health
+    async function checkBackend() {
+      try {
+        const res = await fetch('/api/fraud/history/ACC-101', { method: 'GET' });
+        const badge = document.getElementById('backendStatus');
+        if (res.ok) {
+          badge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+          badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Connected: Port 8080';
+        } else {
+          badge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20';
+          badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400"></span> Backend offline (Simulation Active)';
+        }
+      } catch (e) {
+        const badge = document.getElementById('backendStatus');
+        badge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20';
+        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400"></span> Ready (Start with .\\run.bat)';
+      }
+    }
+    checkBackend();
+    setInterval(checkBackend, 5000);
+  </script>
+</body>
+</html>
