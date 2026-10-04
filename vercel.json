@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/api/fraud/evaluate", "destination": "/api/fraud/evaluate.js" },
+    { "source": "/api/fraud/history/:accountId", "destination": "/api/fraud/history/[accountId].js" },
+    { "source": "/api/fraud/audit-log", "destination": "/api/fraud/audit-log.js" }
+  ]
+}

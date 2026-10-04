@@ -5,7 +5,11 @@ audit_alerts.log
 .idea/
 *.iml
 .vscode/
-.settings/
-.project
-.classpath
+*.docx
+extracted_img_*.png
+extract_pdf.py
+inspect_new_template.py
+populate_new_pbl_template.py
+pbl_template_structure.txt
+fraudguard_extracted_text.txt
 .DS_Store
