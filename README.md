@@ -17,6 +17,12 @@ A high-performance, real-time transaction fraud detection system built with **Ja
 
 ---
 
+## 🏛️ System Architecture Flowchart
+
+![System Architecture Flowchart](architecture_diagram.jpg)
+
+---
+
 ## 📐 Project Structure
 
 ```
