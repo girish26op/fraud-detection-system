@@ -1,0 +1,824 @@
+================================================================================
+FRAUDGUARD 21 : SMART TRANSACTION FRAUD DETECTION SYSTEM IN JAVA 21
+SOURCE CODE LISTING (8 PAGES) - EXCLUDING CardTransaction & UpiTransaction
+================================================================================
+
+================================================================================
+PAGE 1 OF 8: DOMAIN MODELS & CUSTOM EXCEPTIONS
+================================================================================
+
+// -----------------------------------------------------------------------------
+// File 1.1: com/fraud/sys/model/Location.java
+// -----------------------------------------------------------------------------
+package com.fraud.sys.model;
+
+/**
+ * Immutable record representing geographic location of a transaction.
+ *
+ * @param city    the city where transaction originated
+ * @param country the country where transaction originated
+ */
+public record Location(String city, String country) {
+    public Location {
+        if (city == null || city.isBlank()) {
+            city = "UNKNOWN";
+        }
+        if (country == null || country.isBlank()) {
+            country = "UNKNOWN";
+        }
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+// File 1.2: com/fraud/sys/model/Transaction.java
+// -----------------------------------------------------------------------------
+package com.fraud.sys.model;
+
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import java.time.Instant;
+
+/**
+ * Sealed interface representing a financial transaction.
+ * Permitted implementations are restricted to CardTransaction and UpiTransaction.
+ */
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.PROPERTY,
+    property = "type"
+)
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = CardTransaction.class, name = "CARD"),
+    @JsonSubTypes.Type(value = UpiTransaction.class, name = "UPI")
+})
+public sealed interface Transaction permits CardTransaction, UpiTransaction {
+    String txId();
+    String accountId();
+    double amount();
+    Instant timestamp();
+    Location location();
+}
+
+
+// -----------------------------------------------------------------------------
+// File 1.3: com/fraud/sys/exceptions/FraudDetectedException.java
+// -----------------------------------------------------------------------------
+package com.fraud.sys.exceptions;
+
+/**
+ * Custom checked exception thrown when a transaction violates one or more fraud rules.
+ */
+public class FraudDetectedException extends Exception {
+
+    public FraudDetectedException(String message) {
+        super(message);
+    }
+
+    public FraudDetectedException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+
+
+================================================================================
+PAGE 2 OF 8: FRAUD DETECTION RULE ENGINE
+================================================================================
+
+// -----------------------------------------------------------------------------
+// File 2.1: com/fraud/sys/rules/FraudRule.java
+// -----------------------------------------------------------------------------
+package com.fraud.sys.rules;
+
+import com.fraud.sys.model.Transaction;
+
+/**
+ * Functional contract for all fraud rules.
+ */
+@FunctionalInterface
+public interface FraudRule {
+
+    /**
+     * Evaluates whether the given transaction complies with this rule.
+     *
+     * @param txn the transaction to evaluate
+     * @return true if the transaction passes (clean); false if fraud is suspected
+     */
+    boolean evaluate(Transaction txn);
+}
+
+
+// -----------------------------------------------------------------------------
+// File 2.2: com/fraud/sys/rules/VelocityRule.java
+// -----------------------------------------------------------------------------
+package com.fraud.sys.rules;
+
+import com.fraud.sys.model.Transaction;
+
+/**
+ * Velocity rule that flags transactions exceeding a maximum monetary threshold.
+ * Fails if transaction amount exceeds 100,000 INR.
+ */
+public class VelocityRule implements FraudRule {
+
+    public static final double DEFAULT_MAX_AMOUNT = 100_000.0;
+    private final double maxAmount;
+
+    public VelocityRule() {
+        this(DEFAULT_MAX_AMOUNT);
+    }
+
+    public VelocityRule(double maxAmount) {
+        this.maxAmount = maxAmount;
+    }
+
+    @Override
+    public boolean evaluate(Transaction txn) {
+        if (txn == null) {
+            return false;
+        }
+        // Fails if amount > 100,000
+        return txn.amount() <= maxAmount;
+    }
+
+    public double getMaxAmount() {
+        return maxAmount;
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+// File 2.3: com/fraud/sys/rules/GeoJumpingRule.java
+// -----------------------------------------------------------------------------
+package com.fraud.sys.rules;
+
+import com.fraud.sys.model.CardTransaction;
+import com.fraud.sys.model.Transaction;
+
+/**
+ * Geo-jumping rule detecting unexpected cross-border transactions on domestic accounts.
+ */
+public class GeoJumpingRule implements FraudRule {
+
+    public static final String DEFAULT_DOMESTIC_COUNTRY = "INDIA";
+    private final String domesticCountry;
+
+    public GeoJumpingRule() {
+        this(DEFAULT_DOMESTIC_COUNTRY);
+    }
+
+    public GeoJumpingRule(String domesticCountry) {
+        this.domesticCountry = domesticCountry != null ? domesticCountry.trim() : DEFAULT_DOMESTIC_COUNTRY;
+    }
+
+    @Override
+    public boolean evaluate(Transaction txn) {
+        if (txn == null) {
+            return false;
+        }
+
+        // Check if explicitly marked international on CardTransaction
+        if (txn instanceof CardTransaction cardTxn && cardTxn.isInternational()) {
+            return false; // Fails
+        }
+
+        // Check location country against domestic origin
+        if (txn.location() != null && txn.location().country() != null) {
+            String country = txn.location().country().trim();
+            if (!country.equalsIgnoreCase(domesticCountry) && !"DOMESTIC".equalsIgnoreCase(country)) {
+                return false; // Fails: international location for domestic account
+            }
+        }
+
+        return true; // Passes
+    }
+
+    public String getDomesticCountry() {
+        return domesticCountry;
+    }
+}
+
+
+================================================================================
+PAGE 3 OF 8: IN-MEMORY CACHING & JAVA STREAMS API
+================================================================================
+
+// -----------------------------------------------------------------------------
+// File 3.1: com/fraud/sys/cache/UserHistory.java
+// -----------------------------------------------------------------------------
+package com.fraud.sys.cache;
+
+import com.fraud.sys.model.Transaction;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+/**
+ * Encapsulates the historical transactions for a specific user account.
+ */
+public class UserHistory {
+
+    private final String accountId;
+    private final List<Transaction> transactions;
+
+    public UserHistory(String accountId) {
+        this.accountId = accountId;
+        this.transactions = new CopyOnWriteArrayList<>();
+    }
+
+    public UserHistory(String accountId, List<Transaction> initialTransactions) {
+        this.accountId = accountId;
+        this.transactions = new CopyOnWriteArrayList<>(initialTransactions);
+    }
+
+    public void addTransaction(Transaction transaction) {
+        if (transaction != null) {
+            this.transactions.add(transaction);
+        }
+    }
+
+    /**
+     * Calculates the historical average transaction amount for this user using Java Streams API.
+     */
+    public double calculateAverageAmount() {
+        return transactions.stream()
+                .mapToDouble(Transaction::amount)
+                .average()
+                .orElse(0.0);
+    }
+
+    public String getAccountId() {
+        return accountId;
+    }
+
+    public List<Transaction> getTransactions() {
+        return Collections.unmodifiableList(transactions);
+    }
+
+    public int getTransactionCount() {
+        return transactions.size();
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+// File 3.2: com/fraud/sys/cache/TransactionCache.java
+// -----------------------------------------------------------------------------
+package com.fraud.sys.cache;
+
+import com.fraud.sys.model.Transaction;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * In-memory thread-safe cache using ConcurrentHashMap to store and retrieve
+ * UserHistory instances keyed by accountId.
+ */
+public class TransactionCache {
+
+    private final ConcurrentHashMap<String, UserHistory> userHistories;
+
+    public TransactionCache() {
+        this.userHistories = new ConcurrentHashMap<>();
+    }
+
+    public UserHistory getHistory(String accountId) {
+        if (accountId == null) {
+            return null;
+        }
+        return userHistories.get(accountId);
+    }
+
+    public Optional<UserHistory> findHistory(String accountId) {
+        return Optional.ofNullable(getHistory(accountId));
+    }
+
+    public void recordTransaction(Transaction txn) {
+        if (txn == null || txn.accountId() == null) {
+            return;
+        }
+        userHistories.computeIfAbsent(txn.accountId(), UserHistory::new)
+                     .addTransaction(txn);
+    }
+
+    public double getHistoricalAverage(String accountId) {
+        UserHistory history = getHistory(accountId);
+        return history != null ? history.calculateAverageAmount() : 0.0;
+    }
+
+    public int size() {
+        return userHistories.size();
+    }
+
+    public void clear() {
+        userHistories.clear();
+    }
+}
+
+
+================================================================================
+PAGE 4 OF 8: REAL-TIME TRANSACTION PROCESSOR (PATTERN MATCHING ENGINE)
+================================================================================
+
+// -----------------------------------------------------------------------------
+// File 4.1: com/fraud/sys/engine/TransactionProcessor.java (Part 1: Core Engine)
+// -----------------------------------------------------------------------------
+package com.fraud.sys.engine;
+
+import com.fraud.sys.cache.TransactionCache;
+import com.fraud.sys.exceptions.FraudDetectedException;
+import com.fraud.sys.model.CardTransaction;
+import com.fraud.sys.model.Location;
+import com.fraud.sys.model.Transaction;
+import com.fraud.sys.model.UpiTransaction;
+import com.fraud.sys.rules.FraudRule;
+import com.fraud.sys.rules.GeoJumpingRule;
+import com.fraud.sys.rules.VelocityRule;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Executors;
+
+/**
+ * Core fraud detection engine that evaluates transactions using Java 21 pattern matching for switch.
+ */
+public class TransactionProcessor {
+
+    private final FraudRule velocityRule;
+    private final FraudRule geoJumpingRule;
+    private final TransactionCache transactionCache;
+
+    public TransactionProcessor() {
+        this(new VelocityRule(), new GeoJumpingRule(), new TransactionCache());
+    }
+
+    public TransactionProcessor(FraudRule velocityRule, FraudRule geoJumpingRule, TransactionCache transactionCache) {
+        this.velocityRule = velocityRule;
+        this.geoJumpingRule = geoJumpingRule;
+        this.transactionCache = transactionCache;
+    }
+
+    /**
+     * Evaluates a live transaction using Java 21 switch pattern matching over sealed types.
+     */
+    public void processLiveTransaction(Transaction txn) throws FraudDetectedException {
+        if (txn == null) {
+            throw new IllegalArgumentException("Transaction cannot be null");
+        }
+
+        // Java 21 Pattern Matching for switch over sealed interface Transaction
+        switch (txn) {
+            case CardTransaction cardTxn -> {
+                // Check velocity ceiling rule
+                if (!velocityRule.evaluate(cardTxn)) {
+                    throw new FraudDetectedException(
+                        "Card transaction [" + cardTxn.txId() + "] failed VelocityRule: Amount " 
+                        + cardTxn.amount() + " exceeds limit of 100,000"
+                    );
+                }
+                // Check geo-jumping offshore rule
+                if (!geoJumpingRule.evaluate(cardTxn)) {
+                    throw new FraudDetectedException(
+                        "Card transaction [" + cardTxn.txId() + "] failed GeoJumpingRule: International transaction detected at "
+                        + cardTxn.location().city() + ", " + cardTxn.location().country()
+                    );
+                }
+            }
+            case UpiTransaction upiTxn -> {
+                // Check velocity ceiling rule
+                if (!velocityRule.evaluate(upiTxn)) {
+                    throw new FraudDetectedException(
+                        "UPI transaction [" + upiTxn.txId() + "] failed VelocityRule: Amount " 
+                        + upiTxn.amount() + " exceeds limit of 100,000"
+                    );
+                }
+                // Check VPA validity syntax
+                if (upiTxn.vpaId() == null || !upiTxn.vpaId().contains("@")) {
+                    throw new FraudDetectedException(
+                        "UPI transaction [" + upiTxn.txId() + "] failed VpaRule: Invalid VPA address [" 
+                        + upiTxn.vpaId() + "]"
+                    );
+                }
+            }
+        }
+
+        // When all rules pass, update in-memory transaction cache
+        if (transactionCache != null) {
+            transactionCache.recordTransaction(txn);
+        }
+    }
+
+    public TransactionCache getTransactionCache() {
+        return transactionCache;
+    }
+
+
+================================================================================
+PAGE 5 OF 8: VIRTUAL THREADS CONCURRENCY & SIMULATION
+================================================================================
+
+// -----------------------------------------------------------------------------
+// File 5.1: com/fraud/sys/engine/TransactionProcessor.java (Part 2: Project Loom Concurrency)
+// -----------------------------------------------------------------------------
+
+    /**
+     * Main entry point demonstrating Java 21 Virtual Threads concurrency (Project Loom).
+     */
+    public static void main(String[] args) {
+        TransactionProcessor processor = new TransactionProcessor();
+        List<Transaction> mockTransactions = generateMockTransactions();
+
+        System.out.println("======================================================================");
+        System.out.println("Processing " + mockTransactions.size() + " transactions using Java 21 Virtual Threads");
+        System.out.println("======================================================================");
+
+        // Java 21 Virtual Thread Per Task Executor
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            for (Transaction txn : mockTransactions) {
+                executor.submit(() -> {
+                    String threadName = Thread.currentThread().toString();
+                    try {
+                        processor.processLiveTransaction(txn);
+                        System.out.printf("[APPROVED] TxId: %-10s | Account: %-10s | Amount: %10.2f | Thread: %s%n",
+                                txn.txId(), txn.accountId(), txn.amount(), threadName);
+                    } catch (FraudDetectedException e) {
+                        System.err.printf("[BLOCKED]  TxId: %-10s | Account: %-10s | Reason: %s | Thread: %s%n",
+                                txn.txId(), txn.accountId(), e.getMessage(), threadName);
+                    }
+                });
+            }
+        } // Auto-waits for all virtual threads to complete
+
+        System.out.println("======================================================================");
+        System.out.println("Virtual thread processing completed successfully.");
+    }
+
+    private static List<Transaction> generateMockTransactions() {
+        List<Transaction> list = new ArrayList<>();
+        Location mumbai = new Location("Mumbai", "INDIA");
+        Location london = new Location("London", "UK");
+        Location bangalore = new Location("Bangalore", "INDIA");
+        Location newYork = new Location("New York", "USA");
+
+        list.add(new CardTransaction("TXN-001", "ACC-101", 12500.0, Instant.now(), mumbai, "****-1234", false));
+        list.add(new CardTransaction("TXN-002", "ACC-102", 150000.0, Instant.now(), mumbai, "****-5678", false));
+        list.add(new CardTransaction("TXN-003", "ACC-103", 4500.0, Instant.now(), london, "****-9012", true));
+        list.add(new UpiTransaction("TXN-004", "ACC-104", 2500.0, Instant.now(), bangalore, "rahul@okaxis"));
+        list.add(new UpiTransaction("TXN-005", "ACC-105", 250000.0, Instant.now(), bangalore, "priya@okhdfc"));
+        list.add(new CardTransaction("TXN-006", "ACC-106", 890.0, Instant.now(), mumbai, "****-4321", false));
+        list.add(new UpiTransaction("TXN-007", "ACC-107", 5000.0, Instant.now(), bangalore, "invalid_vpa_address"));
+        list.add(new CardTransaction("TXN-008", "ACC-108", 75000.0, Instant.now(), newYork, "****-8765", true));
+        list.add(new UpiTransaction("TXN-009", "ACC-109", 18500.0, Instant.now(), bangalore, "amit@oksbi"));
+        list.add(new CardTransaction("TXN-010", "ACC-110", 34200.0, Instant.now(), mumbai, "****-1122", false));
+
+        return list;
+    }
+}
+
+
+================================================================================
+PAGE 6 OF 8: PERSISTENT FILE I/O AUDIT LOGGING
+================================================================================
+
+// -----------------------------------------------------------------------------
+// File 6.1: com/fraud/sys/io/AuditLogger.java
+// -----------------------------------------------------------------------------
+package com.fraud.sys.io;
+
+import com.fraud.sys.model.CardTransaction;
+import com.fraud.sys.model.Transaction;
+import com.fraud.sys.model.UpiTransaction;
+
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+
+/**
+ * Audit logger that writes fraudulent transaction alerts to a persistent log file
+ * using Java character streams with try-with-resources.
+ */
+public class AuditLogger {
+
+    public static final String DEFAULT_LOG_FILE = "audit_alerts.log";
+    private final File logFile;
+
+    public AuditLogger() {
+        this(DEFAULT_LOG_FILE);
+    }
+
+    public AuditLogger(String filePath) {
+        this.logFile = new File(filePath);
+        ensureFileExists();
+    }
+
+    private void ensureFileExists() {
+        try {
+            File parentDir = logFile.getParentFile();
+            if (parentDir != null && !parentDir.exists()) {
+                parentDir.mkdirs();
+            }
+            if (!logFile.exists()) {
+                logFile.createNewFile();
+            }
+        } catch (IOException e) {
+            System.err.println("Warning: Could not create audit log file: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Appends a blocked transaction record to the audit log file.
+     * Uses try-with-resources over BufferedWriter and FileWriter in append mode.
+     */
+    public synchronized void logBlockedTransaction(Transaction txn, String reason) {
+        if (txn == null) {
+            return;
+        }
+
+        String txType = switch (txn) {
+            case CardTransaction c -> "CARD";
+            case UpiTransaction u -> "UPI";
+        };
+
+        String logEntry = String.format(
+            "[%s] [BLOCKED] TxId=%s | Type=%s | Account=%s | Amount=%.2f | Location=%s,%s | Reason=%s%n",
+            Instant.now(),
+            txn.txId(),
+            txType,
+            txn.accountId(),
+            txn.amount(),
+            txn.location().city(),
+            txn.location().country(),
+            reason
+        );
+
+        // Try-with-resources ensures BufferedWriter and FileWriter are properly flushed and closed
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(logFile, StandardCharsets.UTF_8, true))) {
+            writer.write(logEntry);
+            writer.flush();
+        } catch (IOException e) {
+            System.err.println("Failed to write to audit log file: " + e.getMessage());
+        }
+    }
+
+    public File getLogFile() {
+        return logFile;
+    }
+}
+
+
+================================================================================
+PAGE 7 OF 8: RELATIONAL PERSISTENCE LAYER (JDBC DAO)
+================================================================================
+
+// -----------------------------------------------------------------------------
+// File 7.1: com/fraud/sys/dao/GenericDAO.java
+// -----------------------------------------------------------------------------
+package com.fraud.sys.dao;
+
+import java.sql.SQLException;
+
+/**
+ * Generic Data Access Object interface defining standard persistence operations.
+ *
+ * @param <T> entity type
+ */
+public interface GenericDAO<T> {
+
+    /**
+     * Persists the given entity to the relational database.
+     *
+     * @param entity the entity to save
+     * @throws SQLException if a database access error occurs
+     */
+    void save(T entity) throws SQLException;
+}
+
+
+// -----------------------------------------------------------------------------
+// File 7.2: com/fraud/sys/dao/TransactionDAOImpl.java
+// -----------------------------------------------------------------------------
+package com.fraud.sys.dao;
+
+import com.fraud.sys.model.CardTransaction;
+import com.fraud.sys.model.Transaction;
+import com.fraud.sys.model.UpiTransaction;
+
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.sql.Types;
+
+/**
+ * JDBC-based implementation of GenericDAO for Transaction persistence in PostgreSQL/MySQL.
+ */
+public class TransactionDAOImpl implements GenericDAO<Transaction> {
+
+    private static final String INSERT_SQL = """
+        INSERT INTO transactions (
+            tx_id, account_id, amount, timestamp, city, country,
+            tx_type, card_number, is_international, vpa_id, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """;
+
+    private final DataSource dataSource;
+    private final Connection staticConnection;
+
+    public TransactionDAOImpl(DataSource dataSource) {
+        this.dataSource = dataSource;
+        this.staticConnection = null;
+    }
+
+    public TransactionDAOImpl(Connection connection) {
+        this.dataSource = null;
+        this.staticConnection = connection;
+    }
+
+    private Connection getConnection() throws SQLException {
+        if (dataSource != null) return dataSource.getConnection();
+        if (staticConnection != null) return staticConnection;
+        throw new SQLException("No DataSource or Connection configured for TransactionDAOImpl");
+    }
+
+    @Override
+    public void save(Transaction entity) throws SQLException {
+        if (entity == null) {
+            throw new IllegalArgumentException("Transaction entity cannot be null");
+        }
+
+        boolean shouldCloseConn = (dataSource != null);
+        Connection conn = getConnection();
+
+        try {
+            try (PreparedStatement pstmt = conn.prepareStatement(INSERT_SQL)) {
+                pstmt.setString(1, entity.txId());
+                pstmt.setString(2, entity.accountId());
+                pstmt.setDouble(3, entity.amount());
+                pstmt.setTimestamp(4, entity.timestamp() != null ? Timestamp.from(entity.timestamp()) : new Timestamp(System.currentTimeMillis()));
+                pstmt.setString(5, entity.location() != null ? entity.location().city() : "UNKNOWN");
+                pstmt.setString(6, entity.location() != null ? entity.location().country() : "UNKNOWN");
+
+                switch (entity) {
+                    case CardTransaction cardTxn -> {
+                        pstmt.setString(7, "CARD");
+                        pstmt.setString(8, cardTxn.cardNumber());
+                        pstmt.setBoolean(9, cardTxn.isInternational());
+                        pstmt.setNull(10, Types.VARCHAR);
+                    }
+                    case UpiTransaction upiTxn -> {
+                        pstmt.setString(7, "UPI");
+                        pstmt.setNull(8, Types.VARCHAR);
+                        pstmt.setNull(9, Types.BOOLEAN);
+                        pstmt.setString(10, upiTxn.vpaId());
+                    }
+                }
+
+                pstmt.setString(11, "RECORDED");
+                pstmt.executeUpdate();
+            }
+        } finally {
+            if (shouldCloseConn && conn != null && !conn.isClosed()) {
+                conn.close();
+            }
+        }
+    }
+}
+
+
+================================================================================
+PAGE 8 OF 8: SPRING BOOT REST CONTROLLER & APPLICATION ENTRY
+================================================================================
+
+// -----------------------------------------------------------------------------
+// File 8.1: com/fraud/sys/controller/EvaluationResponse.java
+// -----------------------------------------------------------------------------
+package com.fraud.sys.controller;
+
+import java.time.Instant;
+
+public record EvaluationResponse(String txId, String status, String message, Instant timestamp) {
+    public static EvaluationResponse approved(String txId) {
+        return new EvaluationResponse(txId, "APPROVED", "Transaction passed all fraud checks", Instant.now());
+    }
+    public static EvaluationResponse blocked(String txId, String reason) {
+        return new EvaluationResponse(txId, "BLOCKED", reason, Instant.now());
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+// File 8.2: com/fraud/sys/controller/TransactionRequest.java
+// -----------------------------------------------------------------------------
+package com.fraud.sys.controller;
+
+import com.fraud.sys.model.*;
+import java.time.Instant;
+
+public record TransactionRequest(
+    String txId, String accountId, double amount, String city, String country,
+    String type, String cardNumber, Boolean isInternational, String vpaId
+) {
+    public Transaction toDomainModel() {
+        Location loc = new Location(city != null ? city : "UNKNOWN", country != null ? country : "INDIA");
+        Instant now = Instant.now();
+        if ("UPI".equalsIgnoreCase(type)) {
+            return new UpiTransaction(txId, accountId, amount, now, loc, vpaId);
+        } else {
+            return new CardTransaction(txId, accountId, amount, now, loc, cardNumber != null ? cardNumber : "N/A", Boolean.TRUE.equals(isInternational));
+        }
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+// File 8.3: com/fraud/sys/controller/FraudController.java
+// -----------------------------------------------------------------------------
+package com.fraud.sys.controller;
+
+import com.fraud.sys.engine.TransactionProcessor;
+import com.fraud.sys.exceptions.FraudDetectedException;
+import com.fraud.sys.io.AuditLogger;
+import com.fraud.sys.model.Transaction;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import java.io.File;
+import java.nio.file.Files;
+import java.util.List;
+import java.util.Map;
+
+@CrossOrigin(origins = "*")
+@RestController
+@RequestMapping("/api/fraud")
+public class FraudController {
+
+    private final TransactionProcessor processor;
+    private final AuditLogger auditLogger;
+
+    public FraudController() {
+        this(new TransactionProcessor(), new AuditLogger());
+    }
+
+    public FraudController(TransactionProcessor processor, AuditLogger auditLogger) {
+        this.processor = processor;
+        this.auditLogger = auditLogger;
+    }
+
+    @PostMapping("/evaluate")
+    public ResponseEntity<EvaluationResponse> evaluateTransaction(@RequestBody TransactionRequest request) {
+        if (request == null) {
+            return ResponseEntity.badRequest().body(EvaluationResponse.blocked("UNKNOWN", "Payload cannot be null"));
+        }
+        Transaction transaction = request.toDomainModel();
+        try {
+            processor.processLiveTransaction(transaction);
+            return ResponseEntity.ok(EvaluationResponse.approved(transaction.txId()));
+        } catch (FraudDetectedException ex) {
+            auditLogger.logBlockedTransaction(transaction, ex.getMessage());
+            return ResponseEntity.ok(EvaluationResponse.blocked(transaction.txId(), ex.getMessage()));
+        }
+    }
+
+    @GetMapping("/history/{accountId}")
+    public ResponseEntity<Map<String, Object>> getUserHistory(@PathVariable String accountId) {
+        double avg = processor.getTransactionCache().getHistoricalAverage(accountId);
+        var hist = processor.getTransactionCache().getHistory(accountId);
+        int count = (hist != null) ? hist.getTransactionCount() : 0;
+        return ResponseEntity.ok(Map.of("accountId", accountId, "transactionCount", count, "averageAmount", avg));
+    }
+
+    @GetMapping("/audit-log")
+    public ResponseEntity<List<String>> getAuditLogs() {
+        File file = auditLogger.getLogFile();
+        if (!file.exists()) return ResponseEntity.ok(List.of());
+        try {
+            return ResponseEntity.ok(Files.readAllLines(file.toPath()));
+        } catch (Exception e) {
+            return ResponseEntity.ok(List.of("Error reading audit log: " + e.getMessage()));
+        }
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+// File 8.4: com/fraud/sys/FraudDetectionApplication.java
+// -----------------------------------------------------------------------------
+package com.fraud.sys;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+/**
+ * Main Spring Boot entry point for the Fraud Detection System.
+ */
+@SpringBootApplication
+public class FraudDetectionApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(FraudDetectionApplication.class, args);
+    }
+}
